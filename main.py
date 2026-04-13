@@ -780,6 +780,23 @@ class ImageViewer:
         self.root.after(100, lambda: ui_manager.refresh_bindings(self))
         self.frame.update_idletasks()
 
+    def hide_box_widgets(self, affected_boxes):
+        """삭제/변경된 박스 위젯을 즉시 화면에서 제거합니다. 재렌더 없음.
+        affected_boxes: {label_path: set(line_indices)}
+        """
+        normalized = {os.path.normpath(lp): indices for lp, indices in affected_boxes.items()}
+        for widget in list(self.frame.winfo_children()):
+            lp = getattr(widget, 'label_path', None)
+            if lp is None:
+                continue
+            norm_lp = os.path.normpath(lp)
+            if norm_lp not in normalized:
+                continue
+            line_idx = getattr(widget, 'line_idx', None)
+            if line_idx is not None and line_idx in normalized[norm_lp]:
+                widget.destroy()
+        self._update_dataset_info()
+
     def refresh_current_page_after_changes(self, affected_paths=None):
         if hasattr(self, 'show_only_similar') and self.show_only_similar and hasattr(self, 'current_filtered_labels'):
             return

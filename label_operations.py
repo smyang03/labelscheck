@@ -194,6 +194,7 @@ def delete_selected_labels(viewer):
     deleted_box_count = 0
     error_count = 0
     affected_label_paths = set()
+    affected_boxes_by_path = {}
 
     for i, label_info in enumerate(viewer.selected_label_info):
         try:
@@ -226,6 +227,7 @@ def delete_selected_labels(viewer):
             deleted_file_count += 1
             deleted_box_count += len(indices_to_delete)
             affected_label_paths.add(label_path)
+            affected_boxes_by_path[label_path] = indices_to_delete
 
             _mark_modified(viewer, "deleted", label_path, indices_to_delete)
 
@@ -236,13 +238,8 @@ def delete_selected_labels(viewer):
         if show_progress and (i % 25 == 0 or i == len(viewer.selected_label_info) - 1):
             progress_window.update_idletasks()
 
-    try:
-        for label_path in affected_label_paths:
-            viewer.data_mgr.invalidate_label_cache(label_path)
-        if affected_label_paths:
-            viewer.data_mgr.refresh_label_data_cache(specific_paths=list(affected_label_paths))
-    except Exception as e:
-        print(f"delete_selected_labels cache refresh error: {e}")
+    for label_path in affected_label_paths:
+        viewer.data_mgr.invalidate_label_cache(label_path)
 
     if show_progress:
         progress_label.config(text="바운딩 박스 삭제 완료")
@@ -254,11 +251,7 @@ def delete_selected_labels(viewer):
     viewer.deselect_all_images()
     viewer.root.config(cursor="")
     _safe_destroy_window(progress_window)
-    try:
-        _partial_refresh(viewer, affected_label_paths, current_class, current_page)
-    except Exception as e:
-        print(f"delete_selected_labels refresh error: {e}")
-        viewer.refresh_data()
+    viewer.hide_box_widgets(affected_boxes_by_path)
 
 
 def change_class_labels(viewer):
@@ -362,6 +355,7 @@ def change_class_labels(viewer):
             viewer.root.update_idletasks()
 
         affected_paths = set()
+        affected_boxes_by_path = {}
         processed = 0
         changed_file_count = 0
         changed_box_count = 0
@@ -411,6 +405,7 @@ def change_class_labels(viewer):
 
                 write_label_file(label_path, new_lines)
                 affected_paths.add(label_path)
+                affected_boxes_by_path[label_path] = set(lines_to_change.keys())
                 changed_file_count += 1
                 _mark_modified(viewer, "class_changed", label_path, lines_to_change.keys())
 
@@ -440,24 +435,15 @@ def change_class_labels(viewer):
             )
         viewer.show_status_message(f"클래스 변경 완료: {changed_box_count}개 박스", duration=3000)
 
-        try:
-            for label_path in affected_paths:
-                viewer.data_mgr.invalidate_label_cache(label_path)
-            if affected_paths:
-                viewer.data_mgr.refresh_label_data_cache(specific_paths=list(affected_paths))
-        except Exception as e:
-            print(f"change_class_labels cache refresh error: {e}")
+        for label_path in affected_paths:
+            viewer.data_mgr.invalidate_label_cache(label_path)
 
         viewer.deselect_all_images()
         viewer.changing_class = False
         viewer.root.config(cursor="")
         if changed_file_count > 0:
             _safe_destroy_window(change_dialog)
-        try:
-            _partial_refresh(viewer, affected_paths, current_class, current_page)
-        except Exception as e:
-            print(f"change_class_labels refresh error: {e}")
-            viewer.refresh_data()
+        viewer.hide_box_widgets(affected_boxes_by_path)
 
     ttk.Button(button_frame, text="변경", command=execute_change).pack(side="left", padx=5)
     ttk.Button(button_frame, text="취소", command=change_dialog.destroy).pack(side="right", padx=5)
@@ -527,6 +513,7 @@ def convert_label_to_mask(viewer):
     converted_count = 0
     error_count = 0
     affected_label_paths = set()
+    affected_boxes_by_path = {}
 
     for i, label_info in enumerate(viewer.selected_label_info):
         try:
@@ -620,6 +607,7 @@ def convert_label_to_mask(viewer):
             _mark_modified(viewer, "masking_changed", label_path, applied_line_indices)
 
             affected_label_paths.add(label_path)
+            affected_boxes_by_path[label_path] = set(applied_line_indices)
             viewer.data_mgr.invalidate_image_cache(img_path)
             converted_count += 1
 
@@ -630,13 +618,8 @@ def convert_label_to_mask(viewer):
         if show_progress and (i % 25 == 0 or i == len(viewer.selected_label_info) - 1):
             progress_window.update_idletasks()
 
-    try:
-        for label_path in affected_label_paths:
-            viewer.data_mgr.invalidate_label_cache(label_path)
-        if affected_label_paths:
-            viewer.data_mgr.refresh_label_data_cache(specific_paths=list(affected_label_paths))
-    except Exception as e:
-        print(f"convert_label_to_mask cache refresh error: {e}")
+    for label_path in affected_label_paths:
+        viewer.data_mgr.invalidate_label_cache(label_path)
 
     if show_progress:
         progress_label.config(text="라벨 마스킹 완료")
@@ -648,11 +631,7 @@ def convert_label_to_mask(viewer):
     viewer.deselect_all_images()
     viewer.root.config(cursor="")
     _safe_destroy_window(progress_window)
-    try:
-        _partial_refresh(viewer, affected_label_paths, current_class, current_page)
-    except Exception as e:
-        print(f"convert_label_to_mask refresh error: {e}")
-        viewer.refresh_data()
+    viewer.hide_box_widgets(affected_boxes_by_path)
 
 
 def _create_backup(img_path, label_path):
