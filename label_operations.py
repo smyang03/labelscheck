@@ -252,7 +252,7 @@ def delete_selected_labels(viewer):
     viewer.deselect_all_images()
     viewer.root.config(cursor="")
     _safe_destroy_window(progress_window)
-    viewer.hide_box_widgets(affected_boxes_by_path)
+    viewer.hide_box_widgets(affected_boxes_by_path, reindex=True)
 
 
 def change_class_labels(viewer):
@@ -634,7 +634,7 @@ def convert_label_to_mask(viewer):
     viewer.deselect_all_images()
     viewer.root.config(cursor="")
     _safe_destroy_window(progress_window)
-    viewer.hide_box_widgets(affected_boxes_by_path)
+    viewer.hide_box_widgets(affected_boxes_by_path, reindex=True)
 
 
 def _create_backup(img_path, label_path):
