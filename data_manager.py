@@ -42,6 +42,7 @@ class DataManager:
             'masking_changed': set(),
             'class_changed': set()
         }
+        self.dirty_label_paths = set()  # labelsdata 갱신이 필요한 파일 (원본 경로)
 
         # 페이지네이션
         self.current_page = 0
@@ -88,6 +89,7 @@ class DataManager:
             'masking_changed': set(),
             'class_changed': set()
         }
+        self.dirty_label_paths = set()
         gc.collect()
 
     def rebuild_class_lookup(self):

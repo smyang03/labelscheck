@@ -228,6 +228,7 @@ def delete_selected_labels(viewer):
             deleted_box_count += len(indices_to_delete)
             affected_label_paths.add(label_path)
             affected_boxes_by_path[label_path] = indices_to_delete
+            viewer.data_mgr.dirty_label_paths.add(label_path)
 
             _mark_modified(viewer, "deleted", label_path, indices_to_delete)
 
@@ -406,6 +407,7 @@ def change_class_labels(viewer):
                 write_label_file(label_path, new_lines)
                 affected_paths.add(label_path)
                 affected_boxes_by_path[label_path] = set(lines_to_change.keys())
+                viewer.data_mgr.dirty_label_paths.add(label_path)
                 changed_file_count += 1
                 _mark_modified(viewer, "class_changed", label_path, lines_to_change.keys())
 
@@ -608,6 +610,7 @@ def convert_label_to_mask(viewer):
 
             affected_label_paths.add(label_path)
             affected_boxes_by_path[label_path] = set(applied_line_indices)
+            viewer.data_mgr.dirty_label_paths.add(label_path)
             viewer.data_mgr.invalidate_image_cache(img_path)
             converted_count += 1
 

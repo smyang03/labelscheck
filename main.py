@@ -1162,9 +1162,9 @@ class ImageViewer:
         pct = (selected / total * 100) if total > 0 else 0
         visible_items = sum(1 for widget in self.frame.winfo_children() if hasattr(widget, 'label_path'))
         modified = self.data_mgr.modified_labels
-        deleted_count = len(modified.get('deleted', set()))
-        changed_count = len(modified.get('class_changed', set()))
-        masked_count = len(modified.get('masking_changed', set()))
+        deleted_count = sum(1 for _, li in modified.get('deleted', set()) if li is not None)
+        changed_count = sum(1 for _, li in modified.get('class_changed', set()) if li is not None)
+        masked_count = sum(1 for _, li in modified.get('masking_changed', set()) if li is not None)
         self.dataset_info_label.config(
             text=(
                 f"전체:{total}  표시:{visible_items}  선택:{selected}({pct:.1f}%)  "
@@ -1270,6 +1270,11 @@ class ImageViewer:
         self.data_mgr.label_cache.clear()
         self.data_mgr.image_cache.clear()
         self.data_mgr.overlap_cache.clear()
+        if self.data_mgr.dirty_label_paths:
+            self.data_mgr.refresh_label_data_cache(
+                specific_paths=list(self.data_mgr.dirty_label_paths)
+            )
+            self.data_mgr.dirty_label_paths.clear()
         self.update_display()
         self.show_status_message("데이터 리프레시 완료")
 
