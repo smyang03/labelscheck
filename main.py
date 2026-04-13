@@ -645,68 +645,89 @@ class ImageViewer:
         canvas.paste(resized, (offset_x, offset_y))
         return canvas
 
-    def _render_plan_item(self, item, display_order):
+    def _render_item_with_image(self, item, display_order, img):
+        """pre-opened img를 사용해 plan item 하나를 렌더합니다."""
+        label_path = item['label_path']
+        if item['mode'] == 'crop':
+            lines = self.data_mgr.get_label_data(label_path)
+            target_line_idx = item.get('line_idx')
+            if target_line_idx is None or not (0 <= target_line_idx < len(lines)):
+                return None
+            line = lines[target_line_idx]
+            parts = line.strip().split()
+            if len(parts) < 5:
+                return None
+            try:
+                ci, xc, yc, w, h = map(float, parts[:5])
+            except (ValueError, IndexError):
+                return None
+            if int(ci) != item['class_idx']:
+                return None
+            left = int((xc - w / 2) * img.width)
+            top = int((yc - h / 2) * img.height)
+            right = int((xc + w / 2) * img.width)
+            bottom = int((yc + h / 2) * img.height)
+            cropped = self._prepare_box_crop(img, left, top, right, bottom)
+            widget = img_proc.draw_boxes_on_image_crop(
+                self, cropped, label_path,
+                item['row'], item['col'],
+                item['class_idx'], item['image_index'], item['line_idx'],
+            )
+            if widget is not None:
+                widget.display_order = display_order
+            return widget
+
+        resized = img.resize((200, 200))
+        widget = img_proc.draw_boxes_on_image(
+            self, resized, label_path,
+            item['row'], item['col'], item['image_index'],
+        )
+        if widget is not None:
+            widget.display_order = display_order
+        return widget
+
+    def _render_plan_item(self, item, display_order, img=None):
         label_path = item['label_path']
         img_path = get_image_path_from_label(label_path)
         if not img_path or not os.path.isfile(img_path) or not os.path.isfile(label_path):
             return None
-
         try:
-            with Image.open(img_path) as img:
-                if item['mode'] == 'crop':
-                    lines = self.data_mgr.get_label_data(label_path)
-                    current_box_idx = 0
-                    for line_idx, line in enumerate(lines):
-                        try:
-                            parts = line.strip().split()
-                            if len(parts) < 5:
-                                continue
-                            ci, xc, yc, w, h = map(float, parts[:5])
-                            if int(ci) != item['class_idx']:
-                                continue
-                            if line_idx != item.get('line_idx'):
-                                current_box_idx += 1
-                                continue
-
-                            if current_box_idx == item['box_idx']:
-                                left = int((xc - w / 2) * img.width)
-                                top = int((yc - h / 2) * img.height)
-                                right = int((xc + w / 2) * img.width)
-                                bottom = int((yc + h / 2) * img.height)
-                                cropped = self._prepare_box_crop(img, left, top, right, bottom)
-                                widget = img_proc.draw_boxes_on_image_crop(
-                                    self,
-                                    cropped,
-                                    label_path,
-                                    item['row'],
-                                    item['col'],
-                                    item['class_idx'],
-                                    item['image_index'],
-                                    item['line_idx'],
-                                )
-                                if widget is not None:
-                                    widget.display_order = display_order
-                                return widget
-                            current_box_idx += 1
-                        except (ValueError, IndexError):
-                            continue
-                    return None
-
-                resized = img.resize((200, 200))
-                widget = img_proc.draw_boxes_on_image(
-                    self,
-                    resized,
-                    label_path,
-                    item['row'],
-                    item['col'],
-                    item['image_index'],
-                )
-                if widget is not None:
-                    widget.display_order = display_order
-                return widget
+            if img is not None:
+                return self._render_item_with_image(item, display_order, img)
+            with Image.open(img_path) as opened_img:
+                return self._render_item_with_image(item, display_order, opened_img)
         except Exception as e:
             print(f"Error processing image {img_path}: {e}")
             return None
+
+    def _render_plan_items(self, plan, start_order):
+        """label_path 단위로 이미지를 한 번만 열어 plan 아이템을 순서대로 렌더합니다."""
+        current_label_path = None
+        current_img = None
+        try:
+            for item_idx, item in enumerate(plan[start_order:], start=start_order):
+                label_path = item['label_path']
+                if label_path != current_label_path:
+                    if current_img is not None:
+                        current_img.close()
+                        current_img = None
+                    current_label_path = label_path
+                    img_path = get_image_path_from_label(label_path)
+                    if img_path and os.path.isfile(img_path) and os.path.isfile(label_path):
+                        try:
+                            current_img = Image.open(img_path)
+                        except Exception as e:
+                            print(f"Error opening image {img_path}: {e}")
+
+                if current_img is None:
+                    continue
+                try:
+                    self._render_plan_item(item, item_idx, img=current_img)
+                except Exception as e:
+                    print(f"Error rendering plan item {item_idx}: {e}")
+        finally:
+            if current_img is not None:
+                current_img.close()
 
     def _render_current_page(self, view_state, refresh_all=False, affected_paths=None):
         plan = self._build_current_page_plan(view_state)
@@ -751,8 +772,7 @@ class ImageViewer:
                 if display_order >= start_order:
                     widget.destroy()
 
-        for item_idx, item in enumerate(plan[start_order:], start=start_order):
-            self._render_plan_item(item, item_idx)
+        self._render_plan_items(plan, start_order)
 
         self.root.config(cursor="")
         self._update_dataset_info()

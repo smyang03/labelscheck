@@ -305,9 +305,10 @@ class DataManager:
         paths_to_process = specific_paths if specific_paths else self.labels
 
         if specific_paths:
+            specific_set = set(specific_paths)
             for class_idx, paths in enumerate(self.labelsdata):
-                self.labelsdata[class_idx] = [p for p in paths if p not in specific_paths]
-                self.labelsdata_sets[class_idx].difference_update(specific_paths)
+                self.labelsdata[class_idx] = [p for p in paths if p not in specific_set]
+                self.labelsdata_sets[class_idx].difference_update(specific_set)
 
         for label_path in paths_to_process:
             if not os.path.isfile(label_path):
