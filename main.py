@@ -780,9 +780,10 @@ class ImageViewer:
         self.root.after(100, lambda: ui_manager.refresh_bindings(self))
         self.frame.update_idletasks()
 
-    def hide_box_widgets(self, affected_boxes):
+    def hide_box_widgets(self, affected_boxes, reindex=False):
         """삭제/변경된 박스 위젯을 즉시 화면에서 제거합니다. 재렌더 없음.
         affected_boxes: {label_path: set(line_indices)}
+        reindex: True이면 남은 위젯의 line_idx를 삭제된 라인 기준으로 재조정합니다.
         """
         normalized = {os.path.normpath(lp): indices for lp, indices in affected_boxes.items()}
         for widget in list(self.frame.winfo_children()):
@@ -795,6 +796,23 @@ class ImageViewer:
             line_idx = getattr(widget, 'line_idx', None)
             if line_idx is not None and line_idx in normalized[norm_lp]:
                 widget.destroy()
+
+        if reindex:
+            for widget in list(self.frame.winfo_children()):
+                lp = getattr(widget, 'label_path', None)
+                if lp is None:
+                    continue
+                norm_lp = os.path.normpath(lp)
+                if norm_lp not in normalized:
+                    continue
+                line_idx = getattr(widget, 'line_idx', None)
+                if line_idx is None:
+                    continue
+                deleted_indices = normalized[norm_lp]
+                shift = sum(1 for di in deleted_indices if di < line_idx)
+                if shift > 0:
+                    widget.line_idx = line_idx - shift
+
         self._update_dataset_info()
 
     def refresh_current_page_after_changes(self, affected_paths=None):
@@ -1096,10 +1114,9 @@ class ImageViewer:
     def setup_drag_select_events(self, label, label_path):
         """위젯에 클릭/드래그 이벤트를 바인딩합니다."""
         img_path = get_image_path_from_label(label_path)
-        line_idx = getattr(label, 'line_idx', None)
 
-        label.bind("<Button-1>", lambda e, l=label, lp=label_path, ip=img_path, li=line_idx:
-                    self.on_image_click(l, lp, e, ip, li))
+        label.bind("<Button-1>", lambda e, l=label, lp=label_path, ip=img_path:
+                    self.on_image_click(l, lp, e, ip, getattr(l, 'line_idx', None)))
 
     def on_drag_start(self, event):
         self.drag_start = event
