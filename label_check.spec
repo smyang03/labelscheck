@@ -2,8 +2,6 @@
 import sys
 sys.setrecursionlimit(100000)
 
-block_cipher = None
-
 excludes = [
     'tensorflow', 'tensorflow.python', 'tensorflow.compat', 'keras',
     'torch', 'torchvision', 'torchaudio',
@@ -30,7 +28,7 @@ a = Analysis(
     hiddenimports=[
         'tkinter', 'tkinter.ttk', 'tkinter.filedialog', '_tkinter',
         'PIL', 'PIL.Image', 'PIL.ImageTk', 'PIL.ImageDraw', 'PIL.ImageFont',
-        'numpy', 'tqdm', 'psutil',
+        'numpy', 'psutil',
         'utils', 'data_manager', 'label_operations', 'image_processor', 'ui_manager',
         'threading', 'queue', 'collections', 'copy', 'gc', 'shutil',
         'logging', 'datetime', 'time', 'random', 'os',
@@ -39,19 +37,15 @@ a = Analysis(
     hooksconfig={},
     runtime_hooks=[],
     excludes=excludes,
-    win_no_prefer_redirects=False,
-    win_private_assemblies=False,
-    cipher=block_cipher,
     noarchive=False,
 )
 
-pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
+pyz = PYZ(a.pure)
 
 exe = EXE(
     pyz,
     a.scripts,
     a.binaries,
-    a.zipfiles,
     a.datas,
     [],
     name='label_check',
@@ -61,7 +55,7 @@ exe = EXE(
     upx=False,
     upx_exclude=[],
     runtime_tmpdir=None,
-    console=True,
+    console=False,
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
